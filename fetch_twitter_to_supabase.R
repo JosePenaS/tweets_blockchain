@@ -6,7 +6,7 @@
 
 ## 0 – packages --------------------------------------------------
 need <- c("reticulate", "jsonlite", "purrr", "dplyr",
-          "lubridate", "DBI", "RPostgres")
+          "lubridate", "DBI", "RPostgres", "tibble")
 new  <- need[!need %in% rownames(installed.packages())]
 if (length(new)) install.packages(new, repos = "https://cloud.r-project.org")
 invisible(lapply(need, library, character.only = TRUE))
@@ -30,15 +30,20 @@ if (cookie_json == "") stop("TW_COOKIES_JSON env var not set")
 cookies_list <- jsonlite::fromJSON(cookie_json)
 cookies_str  <- paste(paste0(cookies_list$name, "=", cookies_list$value),
                       collapse = "; ")
-asyncio$run(
-  api$pool$add_account("x", "x", "x", "x", cookies = cookies_str)
-)
+
+asyncio$run(api$pool$add_account("x", "x", "x", "x", cookies = cookies_str))
+
+# ── Block A: quick diagnostics ─────────────────────────────────
+message(sprintf("✅ %d cookies loaded, total chars = %d",
+                nrow(cookies_list), nchar(cookies_str)))
 
 ## 3 – scrape ----------------------------------------------------
 handles <- trimws(strsplit(
             Sys.getenv("TW_HANDLES",
                        "aoTheComputer,ar_io_network,samecwilliams"), ","
           )[[1]])
+
+message("✅ Handles: ", paste(handles, collapse = ", "))
 
 py_none <- import_builtins()$None
 as_chr  <- function(x) if (!identical(x, py_none)) py_str(x) else NA_character_
@@ -75,18 +80,20 @@ empty_df <- tibble::tibble(
   is_quote=logical(), is_retweet=logical(), engagement_rate=numeric()
 )
 
+# ── Block B: verbose scrape_one() ───────────────────────────────
 scrape_one <- function(user, limit = 150L) {
   tryCatch({
     info   <- asyncio$run(api$user_by_login(user))
     tweets <- asyncio$run(
                 twscrape$gather(api$user_tweets_and_replies(info$id, limit = limit))
               )
+    message(sprintf("✅ %s → %d tweets", user, py_len(tweets)))
     purrr::map_dfr(
       0:(py_len(tweets) - 1),
       ~ tweet_to_list(tweets$`__getitem__`(.x), user)
     )
   }, error = function(e) {
-    message(sprintf("❌ %s → %s", user, e$message))
+    message(sprintf("❌ %s → %s", user, conditionMessage(e)))
     empty_df
   })
 }
