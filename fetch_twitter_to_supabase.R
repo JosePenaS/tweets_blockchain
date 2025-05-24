@@ -114,7 +114,9 @@ all_tweets <- all_tweets |>
          is_retweet = if_else(user_id != main_id & is_quote == FALSE,
                               TRUE, is_retweet)) |>
   ungroup() |>
-  distinct(tweet_id, .keep_all = TRUE)
+  distinct(tweet_id, .keep_all = TRUE) |>
+  dplyr::select(-main_id)            # ← drop helper column
+
 
 ## 4 – Supabase connection ---------------------------------------
 supa_host <- Sys.getenv("SUPABASE_HOST")
