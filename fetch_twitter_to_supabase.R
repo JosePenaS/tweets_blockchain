@@ -155,7 +155,13 @@ DBI::dbExecute(con, "
     ORDER BY tweet_id, date DESC
   )
   INSERT INTO twitter_raw AS t
-    SELECT * FROM dedup
+    (tweet_id, username, user_id, text, reply_count,
+     retweet_count, like_count, quote_count, bookmarked_count,
+     view_count, date, is_quote, is_retweet, engagement_rate)
+  SELECT tweet_id, username, user_id, text, reply_count,
+         retweet_count, like_count, quote_count, bookmarked_count,
+         view_count, date::timestamptz, is_quote, is_retweet, engagement_rate
+  FROM dedup
   ON CONFLICT (tweet_id) DO UPDATE SET
     reply_count      = EXCLUDED.reply_count,
     retweet_count    = EXCLUDED.retweet_count,
@@ -165,6 +171,7 @@ DBI::dbExecute(con, "
     view_count       = EXCLUDED.view_count,
     engagement_rate  = EXCLUDED.engagement_rate;
 ")
+
 
 DBI::dbExecute(con, "DROP TABLE IF EXISTS tmp_twitter_raw;")
 DBI::dbDisconnect(con)
